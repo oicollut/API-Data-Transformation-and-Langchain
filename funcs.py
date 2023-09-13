@@ -5,8 +5,15 @@ from google.auth.transport.requests import Request
 import gspread
 import regex
 import json
+from langchain.chains import create_extraction_chain
+from langchain.schema.output_parser import OutputParserException
+import openai
+openai.api_key = os.environ["OPENAI_API_KEY"]
+from langchain.chat_models import ChatOpenAI
+llm = ChatOpenAI(temperature=0, model="gpt-4")
+#gpt-3.5-turbo-16k-0613
 
-def initialize_google_sheet(sheet_id='1PiIoCJJW6AVFGATPfqlEG8M8aUPlOCaACOchcGAJNWc', sheet_name='Sheet2'):
+def initialize_google_sheet(sheet_id='1ZA9WVAAhHpmf5ikwPv1W3k1CqYNGY_Zatu5MZTrjkcg', sheet_name='Sheet2'):
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
     creds = None
@@ -29,6 +36,14 @@ def initialize_google_sheet(sheet_id='1PiIoCJJW6AVFGATPfqlEG8M8aUPlOCaACOchcGAJN
     print("Worksheet access successful.")
     return db
 
+def extract(content: str, schema: dict):
+            try:
+                return create_extraction_chain(schema=schema, llm=llm).run(content)
+            except OutputParserException as e:
+                print(f"Error occurred while extracting: {e}")
+                # handle the exception in any other way you deem necessary
+                return None  # or return a default value
+
 def write_to_google_sheet():
     with open('token.json', 'r') as token_file:
         token_data = json.load(token_file)
@@ -39,7 +54,7 @@ def write_to_google_sheet():
 
     # Open the sheet
     SHEET_ID = '1I21v0eu5sAeEb0ZwirantxABsx6E8Cnr2DlZACEkgAY'
-    SHEET_NAME = 'Sheet2'
+    SHEET_NAME = 'Sheet4'
     spreadsheet = client.open_by_key(SHEET_ID)
     worksheet = spreadsheet.worksheet(SHEET_NAME)
     return worksheet
@@ -74,6 +89,14 @@ def remove_repeating_sentences(text):
     
     return cleaned_text
 
+def clean_wiki(text):
+    cutoff_string = "Main page Contents Current events Random article"
+    if cutoff_string in text:
+        cutoff_string_location = text.find(cutoff_string)
+    text = text[0:cutoff_string_location]
+    return text
+    
+
 def split_text_into_batches(text, batch_size=5000, delimiter='.'):
     paragraphs = text.split(delimiter)
     batches = []
@@ -95,6 +118,17 @@ def split_text_into_batches(text, batch_size=5000, delimiter='.'):
 
     return batches
 
+def filter_data(d, substrings_to_exclude):
+        
+    def is_value_acceptable(value):
+        if value is None or value == '':
+            return False
+        if isinstance(value, list):
+            return all(item and item not in substrings_to_exclude for item in value)
+        return value not in substrings_to_exclude
+
+    return {k: v for k, v in d.items() if is_value_acceptable(v)}
+
 
 def merge_source_data(jsons):
         merged_result = {}
@@ -114,5 +148,9 @@ def merge_source_data(jsons):
                         merged_result[key] = value
         print("Source data merge successful.")
         return merged_result
+
+
+
+
 
 

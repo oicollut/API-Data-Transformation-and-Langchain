@@ -1,17 +1,12 @@
-import os
 import json
 import gspread
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from funcs import initialize_google_sheet, remove_repeating_sentences, merge_source_data
+#from google_auth_oauthlib.flow import InstalledAppFlow
+from funcs import initialize_google_sheet, remove_repeating_sentences, clean_wiki, merge_source_data, extract, filter_data
 from langchain.document_loaders import AsyncChromiumLoader
 from langchain.document_transformers import BeautifulSoupTransformer
-from google.auth.transport.requests import Request
-from langchain.chains import create_extraction_chain
-import openai
-openai.api_key = os.environ["OPENAI_API_KEY"]
-from langchain.chat_models import ChatOpenAI
-llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo-16k-0613") # define Large Language Model to be used 
+#from google.auth.transport.requests import Request
+ # define Large Language Model to be used 
                                                                 # and set temp (model's 'creativity') to zero
 
 
@@ -25,17 +20,19 @@ for entry in db:
     jsons = {}
     source_count = 0
     for source in entry['Sources'].split(","):
-        print('loading source', source)
+        print('Loading source', source)
 
         loader = AsyncChromiumLoader([source])
         html = loader.load() # load source link
-
+        print("Parsing source", source)
         bs_transformer = BeautifulSoupTransformer()
         docs_transformed = bs_transformer.transform_documents(html,tags_to_extract=["p", "li", "div", "a", "span"]) # scrape pages with BS
-
-        docs_transformed = docs_transformed[0].page_content[0:] # store entire scraped text as string (sample below)
+        print("Removing clutter from parsed source text...")
+        docs_transformed = docs_transformed[0].page_content[0:]
+        if 'wikipedia.org' in source:
+            docs_transformed = clean_wiki(docs_transformed) # store entire scraped text as string (sample below)
         cleaned_scrapings = remove_repeating_sentences(docs_transformed)[0:7000]
-
+        print(cleaned_scrapings[:100])
         if html[0].page_content == '':
             print('error loading source')
             continue
@@ -51,28 +48,31 @@ for entry in db:
                     "protected_area_size": { "type": "string" },
                     "protected_area_location": { "type": "string" },
                     "protected_area_landscape_features": { "type": "string" },
-                    "protected_area_famous_places_to_visit": { "type": "string" },
+                    "protected_area_famous_places_to_visit_with_context": { "type": "string" },
                     "protected_area_recreational_opportunities": { "type": "string" },
                     "protected_area_visitor_infrastructure": { "type": "string" },
                     "protected_area_flora": { "type": "string" },
                     "protected_area_fauna": { "type": "string" },
-                    "protected_area_history": { "type": "string" },
-                    "protected_area_geology": { "type": "string" },
+                    "protected_area_history_with_context": { "type": "string" },
+                    "protected_area_geology-with_context": { "type": "string" },
                     "protected_area_address": { "type": "string" },
                     "protected_area_contacts": { "type": "string" },
                     "protected_area_fees": { "type": "string" },
-                    "protected_area_camping_rules": { "type": "string" },
-                    "protected_area_dog_rules": { "type": "string" },
-                    "protected_area_parking": { "type": "string" }
+                    "protected_area_camping_options": { "type": "string" },
+                    "protected_area_parking": { "type": "string" },
+                    "protected_area_campfire_rules": { "type": "string" },
+                    "protected_area_food_storage_rules": { "type": "string" },
+                    "protected_area_dog_rules": { "type": "string" }
                 },
                 "required": ["protected_area_name", "protected_area_size", "protected_area_location"]
                 }
 
 
-        def extract(content: str, schema: dict):
-            return create_extraction_chain(schema=schema, llm=llm).run(content)
-        
-        protected_area_data = (extract(cleaned_scrapings, schema))
+        protected_area_data = extract(cleaned_scrapings, schema)
+        if protected_area_data is None:
+            # handle the error case if needed
+            pass
+
 
         if not protected_area_data:
             print(f"Error: protected_area_data is empty for source: {source}")
@@ -80,20 +80,21 @@ for entry in db:
 
         if (isinstance(protected_area_data, list)):
             protected_area_data = protected_area_data[0]
-           
-        source_key_name = f"json_{source_count}" # Store each result under its source name 
-      
-        jsons[source_key_name] = protected_area_data
 
         print(f"Data for forest_{forest_count} from source_{source_count} extracted!")
         print("Processing data...")
 
+        substring_to_clear = ["not mentioned", 'no data', 'None', 'none', '']
+
+        protected_area_data = filter_data(protected_area_data, substring_to_clear)
+        print("Filtered dictionary:", protected_area_data)
+
+        source_key_name = f"json_{source_count}" # Store each result under its source name 
+      
+        jsons[source_key_name] = protected_area_data
+
         source_count += 1
-    """
-    jsons_sample_data = {
-    'json_0': {'protected_area_name': 'Allegheny National Forest', 'protected_area_size': 'approximately 517,000 acres', 'protected_area_location': 'northwestern Pennsylvania', 'protected_area_landscape_features': 'lakes, rivers, trees, rocks', 'protected_area_famous_places_to_visit': 'Kinzua Skywalk, Longhouse National Scenic Byway, Eldred World War II Museum, Bradford Brew Station, Zippo/Case Museum, Jakes Rocks', 'protected_area_recreational_opportunities': 'snowmobiling, cross-country skiing, biking', 'protected_area_visitor_infrastructure': 'Allegheny National Forest Visitors Bureau', 'protected_area_flora': 'various ecosystems', 'protected_area_fauna': 'wildlife', 'protected_area_history': 'munitions plant during World War II'}, 
-    'json_1': {'protected_area_name': 'Allegheny National Forest', 'protected_area_size': '23,100 acres', 'protected_area_location': 'Pennsylvania', 'protected_area_landscape_features': 'Allegheny Reservoir, Allegheny River', 'protected_area_areas_within': 'Hickory Creek Wilderness, Allegheny Islands Wilderness', 'protected_area_famous_places_to_visit': 'Kinzua Dam, Allegheny Reservoir', 'protected_area_recreational_opportunities': 'Hunting, fishing, mountain biking, snowmobiling, water sports', 'protected_area_visitor_infrastructure': 'Campgrounds, trails, canoe and boat launches', 'protected_area_flora': 'Black cherry, maple, other hardwoods', 'protected_area_fauna': 'Not mentioned', 'protected_area_history': 'Exploitation of timber, scientific and sustainable management'}
-    }"""
+
     # Now we have a dict with data for each source for the same forest (see sample above), 
     # we can merge them into a single dictionary, keeping only the unique data
     
@@ -115,14 +116,8 @@ for entry in db:
                     merged_result[key] = value
 
     print(merged_result)
-    
-    substring_to_clear = ["not mentioned", 'no data', 'None', 'none', '"']
-    #clean out empty keys where no data has been collected
-    merged_result = {k: v for k, v in merged_result.items() if all(
-    all(sub not in x for x in (v if isinstance(v, list) else [v])) for sub in substring_to_clear)}
-    print("Filtered dictionary:", merged_result)
-    break
 
+    
     merged_result = {}
     # Merge the JSONs
     for json_key, data in jsons.items():
@@ -149,7 +144,7 @@ for entry in db:
     forest_count +=1
     print(merged_jsons)
 
-    print("Processing successful. Writing result to Google Sheet...")
+    print("Processing successful.")
 # Access the target Sheet to write the gathered data
 
 with open('token.json', 'r') as token_file:
