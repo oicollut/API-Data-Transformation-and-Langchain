@@ -1,3 +1,5 @@
 /credentials.json
 /merge_data.py
 /token.json
+./RIDBFullExport_V1_JSON
+./__pycache__

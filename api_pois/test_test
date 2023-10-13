@@ -1,0 +1,20 @@
+import requests
+camp_id = 2046
+link1 = f"https://www.recreation.gov/camping/campgrounds/{camp_id}"
+link2 = f"https://www.recreation.gov/camping/campgrounds/{camp_id}"
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+}
+
+# Check if the link works
+response = requests.get(link1, headers=headers)
+if response.status_code == 200 and "Please Bear With Us" not in response.text:
+    message = f'Reservations can be made online at <a href="{link1}">Recreation.gov</a> or by calling 1-877-444-6777.'
+else:
+    response = requests.get(link2, headers=headers)
+    if response.status_code == 200 and "Please Bear With Us" not in response.text:
+        message = f'More information is available at <a href="{link2}">Recreation.gov</a>.'
+    else: message = "Reservations can be made online at Recreation.gov or by calling 1-877-444-6777."
+
+print(message)
