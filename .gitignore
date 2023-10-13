@@ -1,6 +1,7 @@
 /credentials.json
 /merge_data.py
 /token.json
-./RIDBFullExport_V1_JSON
-./__pycache__
-./test_test
+RIDBFullExport_V1_JSON
+.vscode/
+__pycache__/
+.DS_Store
