@@ -48,7 +48,7 @@ for entry in db:
     )
     print(completion.choices[0].message)
     gpt4_text = completion.choices[0].message
-    worksheet = write_to_google_sheet()
+    worksheet = write_to_google_sheet(SHEET_ID = '1I21v0eu5sAeEb0ZwirantxABsx6E8Cnr2DlZACEkgAY', SHEET_NAME = 'Sheet5')
     
     next_row = len(worksheet.col_values(3)) + 1
 

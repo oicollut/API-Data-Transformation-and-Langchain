@@ -5,15 +5,15 @@ from google.auth.transport.requests import Request
 import gspread
 import regex
 import json
-from langchain.chains import create_extraction_chain
-from langchain.schema.output_parser import OutputParserException
-import openai
-openai.api_key = os.environ["OPENAI_API_KEY"]
-from langchain.chat_models import ChatOpenAI
-llm = ChatOpenAI(temperature=0, model="gpt-4")
+#from langchain.chains import create_extraction_chain
+#from langchain.schema.output_parser import OutputParserException
+#import openai
+#openai.api_key = os.environ["OPENAI_API_KEY"]
+#from langchain.chat_models import ChatOpenAI
+#llm = ChatOpenAI(temperature=0, model="gpt-4")
 #gpt-3.5-turbo-16k-0613
 
-def initialize_google_sheet(sheet_id='1ZA9WVAAhHpmf5ikwPv1W3k1CqYNGY_Zatu5MZTrjkcg', sheet_name='Sheet1'):
+def initialize_google_sheet(sheet_id, sheet_name):
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
     creds = None
@@ -32,6 +32,7 @@ def initialize_google_sheet(sheet_id='1ZA9WVAAhHpmf5ikwPv1W3k1CqYNGY_Zatu5MZTrjk
     spreadsheet = client.open_by_key(sheet_id)
     worksheet = spreadsheet.worksheet(sheet_name)
     db = worksheet.get_all_records()
+    #db = worksheet.get('C4:C500')
 
     print("Worksheet access successful.")
     return db
@@ -44,7 +45,7 @@ def extract(content: str, schema: dict):
                 # handle the exception in any other way you deem necessary
                 return None  # or return a default value
 
-def write_to_google_sheet(SHEET_ID = '1I21v0eu5sAeEb0ZwirantxABsx6E8Cnr2DlZACEkgAY', SHEET_NAME = 'Sheet4'):
+def write_to_google_sheet(SHEET_ID, SHEET_NAME):
     with open('token.json', 'r') as token_file:
         token_data = json.load(token_file)
     credentials = Credentials.from_authorized_user_info(token_data)
@@ -127,7 +128,6 @@ def filter_data(d, substrings_to_exclude):
 
     return {k: v for k, v in d.items() if is_value_acceptable(v)}
 
-
 def merge_source_data(jsons):
         merged_result = {}
         # Merge the JSONs
@@ -147,78 +147,12 @@ def merge_source_data(jsons):
         print("Source data merge successful.")
         return merged_result
 
-
-"""""
-def get_facilities_and_services_from_campsite_list(campsite_data):            # Assuming campsite_data is your list of dictionaries
-                # Initialize counters
-                types_of_campsites = {}
-                ada_accessible_count = {}
-
-                # Iterate over the campsite_data to count the number and types of campsites
-                for campsite in campsite_data:
-                    campsite_type = campsite["CampsiteType"]
-                    is_accessible = campsite["CampsiteAccessible"]
-                    
-                    # Count the types of campsites
-                    if campsite_type in types_of_campsites:
-                        types_of_campsites[campsite_type] += 1
-                    else:
-                        types_of_campsites[campsite_type] = 1
-                        
-                    # Count ADA accessible campsites by type
-                    if is_accessible:
-                        if campsite_type in ada_accessible_count:
-                            ada_accessible_count[campsite_type] += 1
-                        else:
-                            ada_accessible_count[campsite_type] = 1
-                    
-                    host_sites = 0
-                    for campsite_type in types_of_campsites:
-                        if campsite_type == "MANAGEMENT":
-                            host_sites +=1
-
-                total_campsites = len(campsite_data) - host_sites
-
-                renamed_types_of_campsites = {}
-                for campsite_type, count in types_of_campsites.items():
-                    if campsite_type == "STANDARD NONELECTRIC":
-                          renamed_types_of_campsites["suitable for both tents and RVs"] = count
-                    if campsite_type == "RV NONELECTRIC":
-                         renamed_types_of_campsites["for RVs only"] = count
-                    if campsite_type == "TENT ONLY NONELECTRIC":
-                         renamed_types_of_campsites["for tents only"] = count
-                    if campsite_type == "MANAGEMENT":
-                        print("Management site removed")
-                    else : renamed_types_of_campsites[campsite_type] = count
-                    
-
-                # Construct the string
-                facilities_string = f"The campground has {total_campsites} campsites, of which"
-                type_strings = []
-                for campsite_type, count in renamed_types_of_campsites.items():
-                    accessible_count = ada_accessible_count.get(campsite_type, 0)
-                    if accessible_count > 0:
-                        type_string = f"{count} sites are {campsite_type} ({accessible_count} of these are ADA accessible)"
-                    else:
-                        type_string = f"{count} sites are {campsite_type}"
-                    type_strings.append(type_string)
-                if len(type_strings) == 1:
-                     facilities_string += type_strings[0] + "."
-                if len(type_strings) == 2:
-                     facilities_string += type_strings[0] + ", " + "and" + type_strings[1] + "."
-                if len(type_strings) == 3:  
-                    facilities_string += type_strings[0] + ", " + "and" + type_strings[1] + f"Another {type_strings[1]}" + "."
-                else: facilities_string += type_strings[0] + " ".join(type_strings) + "."
-                print(facilities_string)
-                return facilities_string"""
-
 def get_facilities_and_services_from_campsite_list(campsite_data):
     types_of_campsites = {}
     ada_accessible_count = {}
     host_sites = 0
 
     for campsite in campsite_data:
-        #campsite_id = campsite['CampsiteID']
         campsite_type = campsite["CampsiteType"]
         is_accessible = campsite["CampsiteAccessible"]
         
@@ -226,73 +160,79 @@ def get_facilities_and_services_from_campsite_list(campsite_data):
             host_sites += 1
             continue
         
-        if campsite_type in types_of_campsites:
-            types_of_campsites[campsite_type] += 1
-        else:
-            types_of_campsites[campsite_type] = 1
-        
+        types_of_campsites[campsite_type] = types_of_campsites.get(campsite_type, 0) + 1
+
         if is_accessible:
             ada_accessible_count[campsite_type] = ada_accessible_count.get(campsite_type, 0) + 1
 
     total_campsites = len(campsite_data) - host_sites
 
-    renamed_types_of_campsites = {}
-    for campsite_type, count in types_of_campsites.items():
-        if campsite_type == "STANDARD NONELECTRIC": 
-            renamed_types_of_campsites["suitable for both tents and RVs"] = count
-        elif campsite_type == "RV NONELECTRIC":
-            renamed_types_of_campsites["for RVs only (no hookups)"] = count
-        elif campsite_type == "TENT ONLY NONELECTRIC":
-            renamed_types_of_campsites["for tents only"] = count
-        elif campsite_type == "STANDARD ELECTRIC":
-            renamed_types_of_campsites["suitable for tents and RVs (electric hookups provided)"] = count
-        elif campsite_type == "WALK TO":
-            renamed_types_of_campsites["walk-to"] = count
-        elif campsite_type == "EQUESTRIAN NONELECTRIC":
-            renamed_types_of_campsites["reserved for camping with horses"] = count
-        elif campsite_type == "GROUP TENT ONLY AREA NONELECTRIC":
-            renamed_types_of_campsites["classified as a group area, reserved for tents only, without electric hookups"] = count
-        elif campsite_type == "GROUP SHELTER NONELECTRIC":
-            renamed_types_of_campsites["group shelters"] = count
-        elif campsite_type == "GROUP STANDARD NONELECTRIC":
-            renamed_types_of_campsites["classified as a group site, suitable for tents and RVs (no electric hookups provided)"] = count
-        elif campsite_type == "GROUP STANDARD ELECTRIC":
-            renamed_types_of_campsites["tent and RV group site complete with electric hookups"] = count
-        elif campsite_type == "GROUP SHELTER ELECTRIC":
-            renamed_types_of_campsites["group shelters with electric hookups"] = count
-        elif campsite_type == "RV ELECTRIC":
-            renamed_types_of_campsites["RV-only, equipped with electric hookups"] = count
-        elif campsite_type == "GROUP STANDARD AREA NONELECTRIC":
-            renamed_types_of_campsites["of the group area type, suitable for tents and RVs (no electric hookups provided)"] = count
-        else: renamed_types_of_campsites[campsite_type] = count
+    type_mappings = {
+        "STANDARD NONELECTRIC": ["is suitable for both tents and RVs", "are suitable for both tents and RVs"],
+        "RV NONELECTRIC": ["is for RVs only (no electric hookups)", "are for RVs only (no electric hookups)"],
+        "TENT ONLY NONELECTRIC": ["is for tents only", "are for tents only"],
+        "STANDARD ELECTRIC": ["is suitable for tents and RVs (electric hookups provided)", "are suitable for tents and RVs (electric hookups provided)"],
+        "WALK TO": ["a walk-to site", "walk-to sites"],
+        "EQUESTRIAN NONELECTRIC": ["is reserved for camping with horses", "are reserved for camping with horses"],
+        "GROUP TENT ONLY AREA NONELECTRIC": ["a tent-only group area (no electric hookups)", "tent-only group areas (no electric hookups)"],
+        "GROUP SHELTER NONELECTRIC": ["is a group shelter (no electric hookups)", "are group shelters (no electric hookups)"],
+        "GROUP STANDARD NONELECTRIC": ["is a group site, suitable for both tents and RVs (no electric hookups provided)", "are group sites, suitable for both tents and RVs (no electric hookups provided)"],
+        "GROUP STANDARD ELECTRIC": ["is a tent and RV group site complete with electric hookups", "are tent and RV group sites complete with electric hookups"],
+        "GROUP SHELTER ELECTRIC": ["is a group shelter equipped with electric hookups", "are group shelters equipped with electric hookups"],
+        "RV ELECTRIC": ["is an RV-only site equipped with electric hookups", "are RV-only sites equipped with electric hookups"],
+        "GROUP STANDARD AREA NONELECTRIC": ["is a group area suitable for tents and RVs (no electric hookups provided)", "are group areas suitable for tents and RVs (no electric hookups provided)"]
+    }
 
-
-    facilities_string = f"The campground has {total_campsites} campsites, of which"
     type_strings = []
-    for campsite_type, count in renamed_types_of_campsites.items():
+
+    for campsite_type, count in types_of_campsites.items():
         accessible_count = ada_accessible_count.get(campsite_type, 0)
-        if count == total_campsites:
-            facilities_string = f"The campground has {total_campsites} campsites,"
-            type_string = f"all of which are {campsite_type}"
-        elif count < total_campsites and count == 1:
-            type_string = f"{count} site is {campsite_type}"
-        elif count > total_campsites:
-            type_string = f"{count} sites are {campsite_type}"
-        elif accessible_count == 1:
-            type_string += "(1 of these sites is ADA accessible)"
+        
+        try:
+            singular, plural = type_mappings[campsite_type]
+        except KeyError:
+        # If the type is not in the mapping
+            new_type = campsite_type.lower()
+            singular = f"is {new_type}"
+            plural = f"are {new_type}"
+            type_mappings[campsite_type] = (singular, plural)  # Add to the mapping
+
+        type_string = f"{count} site" if count == 1 else f"{count} sites"
+        type_string += f" {singular}" if count == 1 else f" {plural}"
+
+        if accessible_count == 1:
+            type_string += " (1 of these sites is ADA accessible)"
         elif accessible_count > 1:
             type_string += f" ({accessible_count} of these are ADA accessible)"
+
         type_strings.append(type_string)
-
-
-    #facilities_string += ' ' + ', '.join(type_strings[:-1])
-    if len(type_strings) == 1:
-        facilities_string += ' ' + type_strings[0]
-    elif len(type_strings) > 1:
-        facilities_string += ' ' + ', '.join(type_strings[:-1]) + ' and ' + type_strings[-1]
-    facilities_string += '.'
-
+    if len(type_strings) > 0:
+# For only one site:
+        if total_campsites == 1 and 'cabin' in type_strings[0]:
+            return ""
+        if total_campsites == 1 and 'shelter' in type_strings[0]:
+            return f"The facility features a single group shelter, which {type_strings[0].split(' ', 2)[-1]}."
+        elif total_campsites == 1:
+            return f"The campground features a single campsite, which {type_strings[0].split(' ', 2)[-1]}."
+        # For the number of sites equal to the number of types:
+        elif len(types_of_campsites) ==1 and "shelter" not in type_strings[0] and "cabin" not in type_strings[0]:
+            return f"The campground has {total_campsites} campsites, all of which are {type_strings[0].split(' ', 3)[-1]}."
+        elif len(types_of_campsites) ==1 and "shelter" in type_strings[0]:
+            return f"The facility features {total_campsites} sites, all which are {type_strings[0].split(' ', 3)[-1]}."
+        else:
+            facilities_string = f"The campground has {total_campsites} campsites, of which"
+            if len(type_strings) == 1:
+                facilities_string += ' ' + type_strings[0]
+            elif len(type_strings) > 1:
+                facilities_string += ' ' + ', '.join(type_strings[:-1]) + ' and ' + type_strings[-1]
+            facilities_string += '.'
+    elif total_campsites == 1:
+        facilities_string = f"The campground features {total_campsites} campsite."
+    else: 
+        facilities_string = f"The campground features {total_campsites} campsite."
+        
     return facilities_string
+    
 
 def get_campsite_attributes():
     with open("api_pois/CampsiteAttributes_API_v1.json") as attributes_data_file:
@@ -329,27 +269,68 @@ def get_rules_and_regs_string(id):
     with open("/Users/Sasha/Documents/Python_Stuff/Langchain/MY_CAMPSITE_ATTRIBUES.json") as attributes_data_file:
         data_dict = json.load(attributes_data_file)
         if data_dict.get(id):
-            check_in = data_dict[id].get('CheckIn', '')
-            check_out = data_dict[id].get('CheckOut', '')
-
-            people_rules = []
-            vehicle_rules = []
-
-            campsite_size = data_dict[id].get('CampsiteSize', '')
-            max_people = data_dict[id].get('MaxPeople', '')
-            max_vehicles = data_dict[id].get('MaxVehicles', '')
-            
-            people_rules.append(f"{max_people} for {campsite_size} campsites")
-            vehicle_rules.append(f"{max_vehicles} per {campsite_size} campsite")
-                
-            people_string = " and ".join(people_rules)
-            vehicle_string = " and ".join(vehicle_rules)
-
-            rules_string = f"Check-in time is {check_in}, check-out is at {check_out}. The maximum number of people is {people_string}. The maximum number of vehicles is {vehicle_string}."
+            rules_string = format_rules_and_regs(data_dict[id])
         else: rules_string = f"No campsite with id {id} in Campsite Attributes file." 
     print(rules_string)
     return rules_string
     #return data_dict
+
+def format_rules_and_regs(campsite_attrs: dict):
+    check_in = campsite_attrs.get('CheckIn', '')
+    check_out = campsite_attrs.get('CheckOut', '')
+
+    people_rules = []
+    vehicle_rules = []
+
+    #campsite_size = campsite_attrs.get('CampsiteSize', '')
+    max_people = campsite_attrs.get('MaxPeople', '')
+    max_vehicles = campsite_attrs.get('MaxVehicles', '')
+    
+    #if len(campsite_size) > 1 and len(max_people) > 0:
+        #people_rules.append(f"{max_people} per {campsite_size} campsite")
+        #vehicle_rules.append(f"{max_vehicles} per {campsite_size} campsite")
+    if len(max_people) > 0:
+        people_rules.append(f"{max_people} per campsite")
+        vehicle_rules.append(f"{max_vehicles} per campsite")
+        
+    people_string = " and ".join(people_rules)
+    vehicle_string = " and ".join(vehicle_rules)
+
+    if len(check_in) > 1 and len(check_out) > 1:
+        check_in_segment = f"Check-in time is {check_in}, check-out is at {check_out}."
+    else:
+        check_in_segment = ""
+    if len(max_people) > 0 and (people_string != "0"):
+        people_segment = f"The maximum number of people is {people_string}."
+    else:
+        people_segment = ""
+    if len(max_vehicles) > 0 and vehicle_string != "0":
+        vehicle_segment = f"The maximum number of vehicles is {vehicle_string}."
+    else: vehicle_segment = ""
+    
+    rules_string = check_in_segment + "\n" + people_segment + "\n" + vehicle_segment + "\n"
+
+    return rules_string
+
+def get_area_dict(file_path):
+    with open(file_path, 'r') as file:
+        data_dict = json.load(file)
+    
+    return data_dict
+
+def get_area_name(data_dict, area_id):
+    import json
+
+    # Check if 'RECDATA' is in the dictionary
+    if 'RECDATA' in data_dict:
+        # Loop through each item in 'RECDATA'
+        for item in data_dict['RECDATA']:
+            # Check if the ID matches
+            if item.get('RecAreaID') == area_id:
+                # Return the corresponding name
+                return item.get('RecAreaName')
+    return None
+
 
 def remove_tags(text):
     import re
@@ -379,9 +360,8 @@ def remove_tags(text):
 }"""
 
 
-import json
-
 def get_campsite_attributes_json():
+    import json
     with open("api_pois/CampsiteAttributes_API_v1.json") as attributes_data_file:
         attributes_data_dict = json.load(attributes_data_file)
         print(f"File opened, dict assembled. Dict is {len(attributes_data_dict['RECDATA'])} campsites long.")
@@ -414,8 +394,12 @@ def get_campsite_attributes_json():
     return all_campground_dicts
 
 
-def get_segments_from_recgov_decsription(description):
+def get_segments_from_recgov_decsription(description: str):
     import re
+
+    # Check if the description contains <h2> tags. If not, return the original description.
+    if '<h2>' not in description:
+        return [description]
 
     matches = re.findall(r'<h2>(.*?)</h2>(.*?)<h2>', description, re.DOTALL)
 
@@ -434,8 +418,8 @@ def get_segments_from_recgov_decsription(description):
     facilities = sections.get('Facilities', '')
     natural_features = sections.get('Natural Features', '')
     nearby_attractions = sections.get('Nearby Attractions', '')
-    contact_info = sections.get('contact_info', '')
-    rules_and_regs = sections.get('Charges &amp; Cancellations', '')
+    contact_info = sections.get('contact_info', '') + sections.get('Contact Info', '')
+    rules_and_regs = sections.get('Charges &amp; Cancellations', '') + sections.get('Know Before You Go', '')
 
     string_list = []
     string_list.append(main_description)
@@ -454,13 +438,13 @@ def get_segments_from_recgov_decsription(description):
     print("\nContact Info:\n", contact_info)
     print("\nRules and Regulations:\n", rules_and_regs)
 
-        
     return(string_list)
+
 
 def linkcheck(camp_id):
     import requests
     link1 = f"https://www.recreation.gov/camping/campgrounds/{camp_id}"
-    link2 = f"https://www.recreation.gov/camping/campgrounds/{camp_id}"
+    link2 = f"https://www.recreation.gov/camping/poi/{camp_id}"
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -468,13 +452,109 @@ def linkcheck(camp_id):
 
     # Check if the link works
     response = requests.get(link1, headers=headers)
-    if response.status_code == 200 and "Please Bear With Us" not in response.text:
+    if response.status_code == 200 and "Recreation.gov is your source for discovering and experiencing America\'s federal recreation activities and outdoor adventures." not in response.text:
+        #print(response.text)
         message = f'Reservations can be made online at <a href="{link1}">Recreation.gov</a> or by calling 1-877-444-6777.'
     else:
         response = requests.get(link2, headers=headers)
-        if response.status_code == 200 and "Please Bear With Us" not in response.text:
+        if response.status_code == 200 and "Recreation.gov is your source for discovering and experiencing America\'s federal recreation activities and outdoor adventures." not in response.text:
+            #print(response.text)
             message = f'More information is available at <a href="{link2}">Recreation.gov</a>.'
-        else: message = "Reservations can be made online at Recreation.gov or by calling 1-877-444-6777."
+        else: message = ""
 
 
     return message
+
+#message = linkcheck("10109092")
+#print(message)
+
+def scrape_website(url: str):
+    import requests
+    from bs4 import BeautifulSoup
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.3'
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        # Check if the response status is not 200 (OK)
+        if response.status_code != 200:
+            print(f"Error: Received status code {response.status_code} when accessing the website.")
+            return
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        content = soup.prettify()
+
+        # Check if content seems too short
+        if len(content) < 100:
+            print("Warning: The scraped content seems unusually short.")
+
+        # Check if there are common anti-scraping measures
+        if "robot" in content or "captcha" in content:
+            print("Warning: The website might have anti-scraping measures in place.")
+
+        return content
+
+    except requests.RequestException as e:
+        print(f"Error: Unable to access the website. Error: {e}")
+        return
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return
+
+def extract_content(html_content: str):
+     
+    starting_substring = "Need to Know"
+    starting_position = html_content.find(starting_substring)
+    if starting_position != -1:
+        print(f"'{starting_substring}' was found in the main string at position {starting_position}!")
+    else:
+        print(f"'{starting_substring}' was not found in the main string.")
+
+    ending_substring = "Natural Features"
+
+    ending_position = html_content.find(ending_substring)
+    if starting_position != -1:
+        print(f"'{ending_substring}' was found in the main string at position {ending_position}!")
+    else:
+        print(f"'{ending_substring}' was not found in the main string.")
+    
+    need_to_know = html_content[starting_position: ending_position]
+
+    
+    return need_to_know
+
+# Sample html_content (you can replace this with the actual content from scraping)
+
+def extract_wanted_rules(content: str):
+
+    import re
+    # Using regular expressions to find the required details
+    #bear_info = re.search(r'(?i)<li>\s*(bears?.*?)(?=</li>)', content, re.DOTALL)
+    #bear_regex = r"<li>[^<]*[Bb]ears[^<]*<\/li>"
+    #matches = re.search(bear_regex, content.strip(), re.MULTILINE | re.IGNORECASE)
+    #print(matches)
+    content = content.replace("<p>", "")
+    content = content.replace("</p>", "")
+    bear_info = re.search(r"<li>[^<]*[Bb]ear[^<]*<\/li>", content, re.MULTILINE | re.IGNORECASE)
+    vehicle_length = re.search(r"<li>[^<]*[Vv]ehicle[^<]*<\/li>",  content, re.MULTILINE | re.IGNORECASE)
+    pets_info = re.search(r"<li>[^<]*[Pp]et[^<]*<\/li>", content, re.MULTILINE | re.IGNORECASE)
+
+    extracted_info = []
+
+    if vehicle_length:
+        vehicles = remove_tags(vehicle_length.group())
+        extracted_info.append(" ".join(vehicles.split()))
+    if bear_info:
+        bears = remove_tags(bear_info.group())
+        extracted_info.append(" ".join(bears.split()))
+    if pets_info:
+        pets = remove_tags(pets_info.group())
+        extracted_info.append(" ".join(pets.split()))
+
+    extracted_info = "\n".join(extracted_info)
+
+    return extracted_info
+
