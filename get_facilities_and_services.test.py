@@ -43,7 +43,6 @@ class TestRulesAndRegs(unittest.TestCase):
                 "LastUpdatedDate": "2023-01-06"
             }
         
-
         result = get_facilities_and_services_from_campsite_list(test_attrs)
 
         self.assertEqual(

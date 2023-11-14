@@ -105,7 +105,7 @@ with open("api_pois/CAMPGROUNDS.json") as campground_data_file:
         data_to_write.append(data_list)
         print(f"Processed campground {key}")
 
-    covered_area_names = names = [
+    covered_area_names = [
     "Mission Mountains Wilderness",
     "Mission Mountains Tribal Wilderness",
     "Kootenai National Forest",
@@ -170,7 +170,7 @@ with open("api_pois/CAMPGROUNDS.json") as campground_data_file:
         print("Writing to Google Sheet...")
         worksheet = write_to_google_sheet(SHEET_ID = '1v18uxLmTcApduUgXu7AnxgoMoi6XAy7Lv1Ni9agbxWk', SHEET_NAME = 'Campgrounds in covered areas (potential dups)')
         worksheet.append_rows(data_to_write)
-            #time.sleep(1) # Consider adding a delay to ensure you don't hit rate limits
+            #time.sleep(1) 
         print("Writing successful! Check Google Sheet.")
 
     else:
@@ -179,7 +179,7 @@ with open("api_pois/CAMPGROUNDS.json") as campground_data_file:
         print("Writing to Google Sheet...")
         worksheet = write_to_google_sheet(SHEET_ID = '1v18uxLmTcApduUgXu7AnxgoMoi6XAy7Lv1Ni9agbxWk', SHEET_NAME = 'Main Export Sheet')
         worksheet.append_rows(data_to_write)
-            #time.sleep(1) # Consider adding a delay to ensure you don't hit rate limits
+            #time.sleep(1) 
         print("Writing successful! Check Google Sheet.")
 
 """""

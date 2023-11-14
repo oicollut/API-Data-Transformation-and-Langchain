@@ -2,7 +2,6 @@ import unittest
 
 from api_pois.pois_all_funcs import format_rules_and_regs
 
-
 class TestRulesAndRegs(unittest.TestCase):
     def test_all_attributes_present(self):
         test_attrs = {

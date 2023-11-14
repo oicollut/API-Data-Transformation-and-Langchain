@@ -61,13 +61,10 @@ def write_to_google_sheet(SHEET_ID, SHEET_NAME):
 def remove_repeating_sentences(text):
     # Split the text by period to get sentences
     sentences = regex.split(r'\.\s{1,2}|(?<=[a-zA-Z])\.(?=[a-zA-Z])', text)
-
-# Remove empty strings that may result from the split
     sentences = [x for x in sentences if x]
 
     #print(sentences)
     
-    # Create lists to store unique sentences and long sentences
     unique_sentences = []
     unique_long_sentences = set()
     
@@ -80,10 +77,9 @@ def remove_repeating_sentences(text):
                 unique_long_sentences.add(sentence)
                 unique_sentences.append(sentence)
         else:
-            # If the sentence is not long, add it to the list without checking for uniqueness
+            
             unique_sentences.append(sentence)
                 
-    # Combine the list back into a single string
     cleaned_text = ". ".join(unique_sentences)
     
     return cleaned_text
@@ -397,7 +393,6 @@ def get_campsite_attributes_json():
 def get_segments_from_recgov_decsription(description: str):
     import re
 
-    # Check if the description contains <h2> tags. If not, return the original description.
     if '<h2>' not in description:
         return [description]
 
@@ -405,8 +400,6 @@ def get_segments_from_recgov_decsription(description: str):
 
     sections = {match[0]: match[1].strip() for match in matches}
 
-    # As the last <h2> tag doesn't have a following <h2> to terminate it, it's not in the matches.
-    # To get it, we can do another regular expression search:
     last_h2 = re.search(r'<h2>([^<]+)</h2>(.*)', description.split("<h2>")[-1], re.DOTALL)
 
     if last_h2:
@@ -526,16 +519,12 @@ def extract_content(html_content: str):
     
     return need_to_know
 
-# Sample html_content (you can replace this with the actual content from scraping)
+
 
 def extract_wanted_rules(content: str):
 
     import re
-    # Using regular expressions to find the required details
-    #bear_info = re.search(r'(?i)<li>\s*(bears?.*?)(?=</li>)', content, re.DOTALL)
-    #bear_regex = r"<li>[^<]*[Bb]ears[^<]*<\/li>"
-    #matches = re.search(bear_regex, content.strip(), re.MULTILINE | re.IGNORECASE)
-    #print(matches)
+    
     content = content.replace("<p>", "")
     content = content.replace("</p>", "")
     bear_info = re.search(r"<li>[^<]*[Bb]ear[^<]*<\/li>", content, re.MULTILINE | re.IGNORECASE)
